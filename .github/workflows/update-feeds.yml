@@ -6,6 +6,29 @@ on:
     # day, and UniFi refreshes at most every 24 hours anyway.
     - cron: "17 3 * * *"
   workflow_dispatch:
+    inputs:
+      action:
+        description: What to do
+        type: choice
+        default: rebuild
+        options:
+          - rebuild
+          - add
+          - remove
+          - test
+      urls:
+        description: Feed URLs, separated by spaces (for remove, feed names work too)
+        type: string
+        required: false
+      group:
+        description: Group for added feeds (auto picks core or inbound from the contents)
+        type: choice
+        default: auto
+        options:
+          - auto
+          - core
+          - inbound
+          - none
   push:
     branches: [main]
     paths:
@@ -25,20 +48,46 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    env:
+      # Form values are passed through the environment, never pasted into
+      # the shell script, so nothing typed into the form can run as a command.
+      ACTION: ${{ inputs.action || 'rebuild' }}
+      URLS: ${{ inputs.urls }}
+      GROUP: ${{ inputs.group || 'auto' }}
     steps:
       - uses: actions/checkout@v7
 
+      - name: Change feeds.conf
+        if: env.ACTION != 'rebuild'
+        run: |
+          if [ -z "$URLS" ]; then
+            echo "::error::The '$ACTION' action needs at least one URL."
+            exit 1
+          fi
+          case "$ACTION" in
+            add)    python3 scripts/build_lists.py add --group "$GROUP" "$URLS" ;;
+            remove) python3 scripts/build_lists.py remove "$URLS" ;;
+            test)   python3 scripts/build_lists.py check "$URLS" ;;
+          esac
+
       - name: Build lists
+        if: env.ACTION != 'test'
         run: python3 scripts/build_lists.py
 
       - name: Commit changes
+        if: env.ACTION != 'test'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add lists
+          git add feeds.conf lists
           if git diff --cached --quiet; then
             echo "No changes."
           else
-            git commit -m "Update threat feeds"
+            case "$ACTION" in
+              add)    message="Add feeds" ;;
+              remove) message="Remove feeds" ;;
+              *)      message="Update threat feeds" ;;
+            esac
+            git commit -m "$message"
             git push
           fi

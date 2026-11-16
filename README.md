@@ -65,20 +65,69 @@ Logging on these policies is worth enabling for the first few days.
 
 ## Feeds
 
-Feeds are defined in [`feeds.conf`](feeds.conf), one per line: name, group,
-format, URL. Comment a line out to drop a feed, or add a line for a new
-one. The supported formats are `text` (one IP or CIDR per line, with `#`
-and `;` comments ignored), `range` (start and end address in the first two
-columns), and `spamhaus-json`. The group decides which combined list a feed
-is merged into: `core`, `inbound`, or `none`.
+[`feeds.conf`](feeds.conf) is a list of URLs, one per line. A bare URL is
+all a feed needs. On each run the build downloads it and works out:
 
-[`allowlist.txt`](allowlist.txt) holds addresses that must never be
-published. They are removed from every list, and if a feed lists a larger
-network around one of them, that network is split so the rest of it stays
-blocked. It ships with a few public DNS resolvers. If you fork this, add
-your own public IP.
+- the format: JSON, a plain list, CSV with an address column, start-end
+  ranges, a hosts file, adblock or dnsmasq rules, or a list of URLs
+- the type: IPv4, IPv6 or domains, with one output file per type
+- the group: `core` when most entries are networks (/24 or larger),
+  `inbound` when they are single hosts, `domains` for domain feeds
+- the name, from the site or repository plus the file name
 
-Pushing a change to either file triggers a rebuild.
+The result of that detection is shown per feed in `lists/SOURCES.md`.
+
+Any of it can be pinned by adding `name=`, `group=` or `format=` after the
+URL. Lines that share a name are merged into one feed, which is how the
+Spamhaus IPv4 and IPv6 files end up as `spamhaus-drop`. Feodo Tracker is
+pinned to `core` because it is a list of single hosts that would otherwise
+be filed under `inbound`, and the reason to carry it is to stop LAN clients
+from reaching botnet controllers.
+
+### Adding and removing feeds
+
+Editing `feeds.conf` and pushing works. So does the Actions tab: open
+**Update threat feeds**, press **Run workflow**, and pick an action.
+
+| Action | What it does |
+| --- | --- |
+| `rebuild` | Rebuilds every list now |
+| `add` | Downloads each URL, checks that it parses, then adds it to `feeds.conf` and rebuilds. If any URL fails, nothing is added |
+| `remove` | Removes feeds by URL or by name, rebuilds, and deletes their files |
+| `test` | Reports what each URL would produce (type, format, entry count, group, a few sample entries) without changing anything |
+
+URLs go in the second field, separated by spaces. The run summary shows
+what was detected. A link to a file page on github.com is rewritten to its
+raw form.
+
+The same commands work from a checkout:
+
+```
+python3 scripts/build_lists.py check https://example.com/list.txt
+python3 scripts/build_lists.py add https://example.com/list.txt
+python3 scripts/build_lists.py remove example-list
+```
+
+Do not add a URL that contains an API key or token. This repo is public,
+so the key would be too, and `add` refuses URLs that look like they carry
+one.
+
+### Domain feeds
+
+A feed made of domains is written to `lists/<feed>-domains.txt` and merged
+into `lists/combined-domains.txt`. None are enabled by default. In UniFi a
+domain list is created with Type set to Domain. Keep in mind that a
+firewall policy using a domain list blocks the addresses those names
+resolve to, so a domain hosted behind a shared CDN can take unrelated sites
+down with it.
+
+### Allowlist
+
+[`allowlist.txt`](allowlist.txt) holds addresses and domains that must
+never be published. IPs are removed from every list, and if a feed lists a
+larger network around one of them, that network is split so the rest of it
+stays blocked. A domain entry also covers its subdomains. The file ships
+with a few public DNS resolvers. If you fork this, add your own public IP.
 
 ## Build details
 
@@ -99,14 +148,15 @@ Things it does besides reformatting:
 - Merges adjacent addresses into CIDR blocks. The merged blocks cover
   exactly the same addresses as the input.
 - Keeps the previous copy of a feed when its download fails or comes back
-  as something other than a list of addresses. The failure shows up as a
+  as something other than a list of addresses or domains. The failure shows up as a
   warning on the workflow run and in `SOURCES.md`.
 - Splits any list that grows past 100,000 entries into `-part2`, `-part3`
   and so on.
 
 The workflow in
 [`.github/workflows/update-feeds.yml`](.github/workflows/update-feeds.yml)
-runs at 03:17 UTC and only commits when something changed.
+runs at 03:17 UTC and only commits when something changed. Every run
+downloads every feed again, so manual runs are best kept occasional.
 
 ## Credits
 
