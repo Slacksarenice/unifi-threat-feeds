@@ -1,114 +1,130 @@
-# UniFi threat feeds
+# unifi-threat-feeds
 
-A GitHub Action that downloads public threat feeds once a day, cleans them
-into the plain format UniFi Dynamic Network Lists need, and commits the
-results to this repo so every list has a stable URL.
+Public IP blocklists, converted into files a UniFi gateway can import as
+Dynamic Network Lists. A GitHub Action rebuilds them once a day.
 
-UniFi wants one IP or CIDR per line, one address family per list, no
-comments, and at most 100,000 entries. Most feeds do not ship that way
-(Spamhaus DROP is JSON, FireHOL has comment headers and private ranges,
-DShield is a table), so the script converts them.
+UniFi Network 11 can load a network list from a URL, but it is strict about
+the file: one IP or CIDR per line, no comments, IPv4 and IPv6 kept in
+separate lists, and no more than 100,000 entries. Most of the well-known
+feeds are not published that way. Spamhaus DROP is JSON, FireHOL has a
+comment header and includes private ranges, DShield is a tab-separated
+table. This repo downloads them, converts them, and commits the output to
+[`lists/`](lists).
 
-## Setup
+## Lists
 
-1. Create a new **public** repository on GitHub. It has to be public so the
-   gateway can download the files without a login.
-2. Upload the contents of this folder, keeping the folder structure
-   (`.github/workflows/update-feeds.yml` must stay at that exact path).
-3. Open the **Actions** tab. The first run starts on its own after the
-   upload. If it does not, pick **Update threat feeds** and press
-   **Run workflow**.
-4. When the run finishes, a `lists/` folder appears. Your URLs look like:
+There are two merged lists, each in an IPv4 and an IPv6 file. These are the
+ones to use unless you want to pick feeds individually.
 
-   ```
-   https://raw.githubusercontent.com/YOUR_USER/YOUR_REPO/main/lists/combined-core-v4.txt
-   ```
-
-After that it runs every day at 03:17 UTC and commits only when a list
-changed.
-
-## What you get
-
-| File | Contents | Block direction |
+| List | Size | What is in it |
 | --- | --- | --- |
-| `combined-core-v4.txt`, `combined-core-v6.txt` | Spamhaus DROP, FireHOL Level 1, Emerging Threats block IPs, DShield, Feodo Tracker, merged and deduplicated | Both |
-| `combined-inbound-v4.txt`, `combined-inbound-v6.txt` | IPsum level 3, blocklist.de, CINS Army, Emerging Threats compromised, Binary Defense, GreenSnow, merged and deduplicated | Inbound only |
-| `spamhaus-drop-v4.txt`, `spamhaus-drop-v6.txt` | Spamhaus DROP on its own | Both |
-| `<feed>-v4.txt`, `<feed>-v6.txt` | Every other feed on its own | See its group |
-| `SOURCES.md` | Entry counts, status and credits for every list | |
+| `combined-core` | about 4,600 networks | Spamhaus DROP, FireHOL Level 1, Emerging Threats block IPs, DShield, Feodo Tracker |
+| `combined-inbound` | about 31,000 hosts | IPsum level 3, blocklist.de, CINS Army, Emerging Threats compromised IPs, Binary Defense, GreenSnow |
 
-The simplest setup uses just the four `combined-*` files.
+```
+https://raw.githubusercontent.com/Slacksarenice/unifi-threat-feeds/main/lists/combined-core-v4.txt
+https://raw.githubusercontent.com/Slacksarenice/unifi-threat-feeds/main/lists/combined-core-v6.txt
+https://raw.githubusercontent.com/Slacksarenice/unifi-threat-feeds/main/lists/combined-inbound-v4.txt
+https://raw.githubusercontent.com/Slacksarenice/unifi-threat-feeds/main/lists/combined-inbound-v6.txt
+```
 
-The **core** lists are whole networks run by criminal operations, with very
-few false positives. The **inbound** lists are single hosts caught scanning
-or brute-forcing. Those addresses get reassigned and shared, so blocking
-your own users from reaching them is more likely to break something than
-help.
+The core list is made of whole networks that are run by or leased to
+criminal operations. False positives are rare, so it is reasonable to block
+it in both directions.
 
-## Add the lists in UniFi
+The inbound list is individual hosts that were recently seen scanning or
+brute-forcing. Those addresses get reassigned and are often shared, so it
+is meant for traffic coming in from the internet. Blocking LAN clients from
+reaching them tends to break legitimate sites now and then.
 
-Needs UniFi Network 11.0.83 or later, UniFi OS 6.0.10 or later, and the
-zone-based firewall.
+Every feed is also published separately as `lists/<feed>-v4.txt` and
+`lists/<feed>-v6.txt`, for example `spamhaus-drop-v4.txt`. Current entry
+counts and the status of the last build are in
+[`lists/SOURCES.md`](lists/SOURCES.md).
 
-For each file you want:
+## Using them on a UniFi gateway
 
-1. **Networks > Network Lists > Create New**
-2. **Type** IP (pick IPv4 or IPv6 to match the file), **Source** Dynamic
-3. Paste the raw URL, set refresh to **24 hours**, save
-4. Open the list and check that entries loaded
+Requires UniFi Network 11.0.83 or newer on UniFi OS 6.0.10 or newer, with
+the zone-based firewall.
 
-Then add Block policies in the firewall policy table, above any allow rules
-for the same traffic:
+Create one network list per file under Networks > Network Lists > Create
+New. Set Type to IP with the matching address family, set Source to
+Dynamic, paste the raw URL, and choose a 24 hour refresh. Open the list
+afterwards to make sure the entries loaded.
 
-| List | Source zone | Destination zone | List goes in |
+A list does nothing until a firewall policy uses it. Add Block policies
+above any allow rules that cover the same traffic:
+
+| Source zone | Destination zone | List used as | Lists |
 | --- | --- | --- | --- |
-| core and inbound | External | Internal | Source |
-| core and inbound | External | Gateway | Source |
-| core only | Internal | External | Destination |
+| External | Internal | source | core, inbound |
+| External | Gateway | source | core, inbound |
+| Internal | External | destination | core |
 
-Turn on logging for the policies at first so you can see what they catch.
+Logging on these policies is worth enabling for the first few days.
 
-## Change which feeds are used
+## Feeds
 
-Edit `feeds.conf`. Each line is `name group format url`. Put a `#` in front
-of a line to turn a feed off, or add a line to add one. The comments at the
-top of the file explain the columns. Committing the change triggers a
-rebuild.
+Feeds are defined in [`feeds.conf`](feeds.conf), one per line: name, group,
+format, URL. Comment a line out to drop a feed, or add a line for a new
+one. The supported formats are `text` (one IP or CIDR per line, with `#`
+and `;` comments ignored), `range` (start and end address in the first two
+columns), and `spamhaus-json`. The group decides which combined list a feed
+is merged into: `core`, `inbound`, or `none`.
 
-## Keep an address from ever being blocked
+[`allowlist.txt`](allowlist.txt) holds addresses that must never be
+published. They are removed from every list, and if a feed lists a larger
+network around one of them, that network is split so the rest of it stays
+blocked. It ships with a few public DNS resolvers. If you fork this, add
+your own public IP.
 
-Add it to `allowlist.txt`, one IP or CIDR per line. The script carves it out
-of every list, even when a feed lists a larger network around it. Add your
-own public IP and anything you cannot afford to lose access to.
+Pushing a change to either file triggers a rebuild.
 
-## Safety behavior
+## Build details
 
-- **A failed feed keeps its last good copy.** If a download fails or returns
-  junk, the previous file stays in place and the run shows a warning. An
-  empty list would silently turn the protection off.
-- **Private and reserved ranges are removed.** FireHOL Level 1 includes
-  ranges such as 10.0.0.0/8 and 192.168.0.0/16. Blocking those on a gateway
-  can cut off an upstream modem or a carrier NAT link.
-- **Very broad networks are refused** (wider than /8 for IPv4, /19 for
-  IPv6), so a bad feed cannot block the whole internet.
-- **Lists over 100,000 entries are split** into `-part2`, `-part3` files.
-  Add each part as its own Network List.
-- **Adjacent addresses are merged** into CIDR blocks that cover exactly the
-  same addresses, which keeps the entry count down.
-
-## Run it locally
+[`scripts/build_lists.py`](scripts/build_lists.py) does the work. It needs
+Python 3.10 or newer and nothing outside the standard library:
 
 ```
 python3 scripts/build_lists.py
 ```
 
-Python 3.10 or later, no packages to install.
+Things it does besides reformatting:
 
-## Credits and terms
+- Drops private and reserved address space. FireHOL Level 1 lists ranges
+  such as 10.0.0.0/8 and 192.168.0.0/16, which can cut off an upstream
+  modem or a CGNAT link if a gateway blocks them.
+- Rejects anything wider than a /8 (IPv4) or a /19 (IPv6), so a broken feed
+  cannot block most of the internet.
+- Merges adjacent addresses into CIDR blocks. The merged blocks cover
+  exactly the same addresses as the input.
+- Keeps the previous copy of a feed when its download fails or comes back
+  as something other than a list of addresses. The failure shows up as a
+  warning on the workflow run and in `SOURCES.md`.
+- Splits any list that grows past 100,000 entries into `-part2`, `-part3`
+  and so on.
 
-Every feed belongs to its publisher and comes with its own terms of use.
-This repo republishes cleaned copies, so read the terms for each feed you
-leave turned on in `feeds.conf` and turn off any you are not comfortable
-republishing. Spamhaus asks for credit and for no more than one download a
-day; `lists/SOURCES.md` carries the credit and the schedule respects the
-limit. Spamhaus terms: https://www.spamhaus.org/drop/terms/
+The workflow in
+[`.github/workflows/update-feeds.yml`](.github/workflows/update-feeds.yml)
+runs at 03:17 UTC and only commits when something changed.
+
+## Credits
+
+The data belongs to the projects that publish it, and each has its own
+terms of use:
+
+- [Spamhaus DROP](https://www.spamhaus.org/drop/) ([terms](https://www.spamhaus.org/drop/terms/))
+- [FireHOL IP lists](https://iplists.firehol.org/)
+- [Emerging Threats](https://rules.emergingthreats.net/)
+- [DShield](https://www.dshield.org/)
+- [abuse.ch Feodo Tracker](https://feodotracker.abuse.ch/)
+- [IPsum](https://github.com/stamparm/ipsum)
+- [blocklist.de](https://www.blocklist.de/)
+- [CINS Army](https://cinsscore.com/)
+- [Binary Defense](https://www.binarydefense.com/)
+- [GreenSnow](https://greensnow.co/)
+
+Spamhaus asks for attribution and for no more than one download per day.
+The build runs once daily, and the copyright notice from the Spamhaus feed
+is carried into `lists/SOURCES.md` because the list files themselves cannot
+hold comments.
