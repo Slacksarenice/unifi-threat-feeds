@@ -13,15 +13,18 @@ table. This repo downloads them, converts them, and commits the output to
 
 ## Lists
 
-There are two merged lists, each in an IPv4 and an IPv6 file. These are the
-ones to use unless you want to pick feeds individually.
+There are three merged lists, each in an IPv4 and an IPv6 file. These are
+the ones to use unless you want to pick feeds individually.
 
 | List | Size | What is in it |
 | --- | --- | --- |
 | `combined-core` | about 4,600 networks | Spamhaus DROP, FireHOL Level 1, Emerging Threats block IPs, DShield, Feodo Tracker |
 | `combined-inbound` | about 31,000 hosts | IPsum level 3, blocklist.de, CINS Army, Emerging Threats compromised IPs, Binary Defense, GreenSnow |
+| `combined-all` | about 34,500 entries | Core and inbound together, for policies on traffic coming in |
 
 ```
+https://raw.githubusercontent.com/Slacksarenice/unifi-threat-feeds/main/lists/combined-all-v4.txt
+https://raw.githubusercontent.com/Slacksarenice/unifi-threat-feeds/main/lists/combined-all-v6.txt
 https://raw.githubusercontent.com/Slacksarenice/unifi-threat-feeds/main/lists/combined-core-v4.txt
 https://raw.githubusercontent.com/Slacksarenice/unifi-threat-feeds/main/lists/combined-core-v6.txt
 https://raw.githubusercontent.com/Slacksarenice/unifi-threat-feeds/main/lists/combined-inbound-v4.txt
@@ -52,14 +55,24 @@ New. Set Type to IP with the matching address family, set Source to
 Dynamic, paste the raw URL, and choose a 24 hour refresh. Open the list
 afterwards to make sure the entries loaded.
 
-A list does nothing until a firewall policy uses it. Add Block policies
-above any allow rules that cover the same traffic:
+A list does nothing until a firewall policy uses it, and a policy covers
+one zone pair, one list and one address family. To keep the number of
+policies down, use `combined-all` for traffic coming in and `combined-core`
+for traffic going out. Add Block policies above any allow rules that cover
+the same traffic:
 
-| Source zone | Destination zone | List used as | Lists |
+| Source zone | Destination zone | List used as | List |
 | --- | --- | --- | --- |
-| External | Internal | source | core, inbound |
-| External | Gateway | source | core, inbound |
-| Internal | External | destination | core |
+| each internal zone | External | destination | `combined-core` |
+| External | Gateway | source | `combined-all` |
+| External | each zone with a port forward | source | `combined-all` |
+
+The first row is the one that matters on every network. The other two only
+do something where the gateway already lets traffic in: a VPN server or
+other service on the gateway itself, or a port forward. Everything else
+arriving from External is dropped by the default policy before a blocklist
+would be consulted. The IPv6 files can be skipped on a network that does not
+use IPv6.
 
 Logging on these policies is worth enabling for the first few days.
 

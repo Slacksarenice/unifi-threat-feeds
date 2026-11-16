@@ -8,6 +8,7 @@ and writes:
 
     lists/<feed>-v4.txt, -v6.txt, -domains.txt   one feed on its own
     lists/combined-core-v4.txt, ...              feeds merged by group
+    lists/combined-all-v4.txt, ...               core and inbound together
     lists/SOURCES.md                             what each list came from
 
 Usage:
@@ -678,6 +679,12 @@ def build() -> int:
         rows.append(row)
         print(f"{name:22} {row['status']:27} {row['group']:16} "
               f"v4={row['v4']:>6} v6={row['v6']:>5} domains={row['domains']:>7}")
+
+    # One list holding everything, so an inbound policy needs a single list
+    # per address family instead of core and inbound separately.
+    if "core" in merged and "inbound" in merged:
+        merged["all"] = {kind: merged["core"][kind] + merged["inbound"][kind]
+                         for kind in KINDS}
 
     for group in sorted(merged):
         prefix = "combined" if group == "domains" else f"combined-{group}"

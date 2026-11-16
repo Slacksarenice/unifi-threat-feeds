@@ -18,6 +18,7 @@ parse them, so the credits live here instead.
 | et-compromised | IPs, plain list | inbound (auto) | 578 | 0 | 0 | ok | https://rules.emergingthreats.net/blockrules/compromised-ips.txt |
 | binarydefense | IPs, plain list | inbound (auto) | 1069 | 0 | 0 | ok | https://www.binarydefense.com/banlist.txt |
 | greensnow |  | - | 0 | 0 | 0 | FAILED, no data | https://blocklist.greensnow.co/greensnow.txt |
+| combined-all | merged | all | 34483 | 310 | 0 | ok | merged from the feeds in this group |
 | combined-core | merged | core | 4644 | 84 | 0 | ok | merged from the feeds in this group |
 | combined-inbound | merged | inbound | 30929 | 226 | 0 | ok | merged from the feeds in this group |
 
