@@ -74,7 +74,103 @@ arriving from External is dropped by the default policy before a blocklist
 would be consulted. The IPv6 files can be skipped on a network that does not
 use IPv6.
 
+On the two inbound rows, set Connection State to New and Invalid rather
+than All. That refuses connections a listed address tries to open while
+still letting replies through for connections your own devices started, so
+a host on the inbound list is not cut off from clients that reach out to
+it.
+
 Logging on these policies is worth enabling for the first few days.
+
+Creating these by hand gets tedious once there are several zones. The
+helper below does it in one run.
+
+## Policy helper
+
+[`helper/`](helper) has a script that creates the block policies for you,
+in Python and in PowerShell. Both do the same thing. It reads the zones and
+IP lists from the gateway, shows the policies it would create, and creates
+them after you confirm. It works with any IP lists on the gateway, not only
+the ones from this repo.
+
+Before running it:
+
+1. Create the Network Lists in UniFi as described above.
+2. Create an API key in UniFi Network under Settings > Control Plane >
+   Integrations (on recent versions, Integrations in the sidebar).
+
+Python 3.8 or newer, no packages needed:
+
+```
+curl -O https://raw.githubusercontent.com/Slacksarenice/unifi-threat-feeds/main/helper/unifi_policies.py
+python3 unifi_policies.py --insecure
+```
+
+Windows PowerShell 5.1 or PowerShell 7:
+
+```
+Invoke-WebRequest https://raw.githubusercontent.com/Slacksarenice/unifi-threat-feeds/main/helper/unifi_policies.ps1 -OutFile unifi_policies.ps1
+powershell -ExecutionPolicy Bypass -File .\unifi_policies.ps1 -SkipCertificateCheck
+```
+
+It asks for the gateway address and the API key, lists what it found, and
+asks which lists to block outbound and which inbound:
+
+```
+Connected to UniFi Network 11.0.99, site "Default".
+
+Zones: Internal, External, Gateway, Vpn, Hotspot, Dmz
+IP lists:
+  1. Threat Core v4 (IPv4)
+  2. Threat All v4 (IPv4)
+
+Lists to block outbound (numbers, Enter for none): 1
+Lists to block inbound (numbers, Enter for none): 2
+
+Plan (9 policies):
+  Internal to External  block destination in "Threat Core v4" (IPv4)
+  ...
+Create 9 policies? [y/N]
+```
+
+Nothing is changed until you answer yes.
+
+| Python | PowerShell | Effect |
+| --- | --- | --- |
+| `--dry-run` | `-DryRun` | Show the plan and stop |
+| `--remove` | `-Remove` | Delete every policy the helper created |
+| `--outbound "A,B"` | `-Outbound "A,B"` | Lists to block outbound, skipping the questions |
+| `--inbound "A,B"` | `-Inbound "A,B"` | Lists to block inbound |
+| `--outbound-zones "X,Y"` | `-OutboundZones "X,Y"` | Limit outbound policies to these zones |
+| `--inbound-zones "X,Y"` | `-InboundZones "X,Y"` | Limit inbound policies to these zones |
+| `--log` | `-Log` | Turn on logging for the new policies |
+| `--no-reorder` | `-NoReorder` | Do not move the new policies to the top |
+| `--yes` | `-Yes` | Do not ask for confirmation |
+| `--insecure` | `-SkipCertificateCheck` | Accept the gateway's self-signed certificate |
+| `--site NAME` | `-Site NAME` | Pick a site when there are several |
+
+`UNIFI_GATEWAY` and `UNIFI_API_KEY` can be set in the environment instead
+of typing them. The key is not stored anywhere.
+
+What it creates:
+
+- Outbound: one policy per list from each of your zones to External,
+  matching the list as destination. Default zones are all except External
+  and Gateway.
+- Inbound: one policy per list from External to each zone, matching the
+  list as source, for new and invalid connections only. Default zones are
+  all except External.
+- New policies are moved to the top of their zone pair so they are
+  evaluated before any allow rule.
+- Each policy is named `ThreatFeed <source> to <destination> - <list>` and
+  carries a description that `--remove` uses to find it. Running the helper
+  twice does not create duplicates.
+
+The helper uses the official UniFi Network API (`/proxy/network/integration`).
+It was written against the API description for Network 11.0.89 and tested
+against a mock of it, not against every gateway model, so start with
+`--dry-run`. If the IP lists you created do not show up in its output, that
+version of the API does not expose them and the helper cannot use them.
 
 ## Feeds
 
