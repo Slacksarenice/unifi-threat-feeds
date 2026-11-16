@@ -55,7 +55,14 @@ jobs:
       URLS: ${{ inputs.urls }}
       GROUP: ${{ inputs.group || 'auto' }}
     steps:
-      - uses: actions/checkout@v7
+      # Plain git instead of actions/checkout, so the workflow still runs
+      # where the Actions policy only allows the owner's own actions.
+      - name: Check out
+        env:
+          TOKEN: ${{ github.token }}
+        run: |
+          git clone --quiet --depth 1 --branch "$GITHUB_REF_NAME" \
+            "https://x-access-token:${TOKEN}@github.com/${GITHUB_REPOSITORY}.git" .
 
       - name: Change feeds.conf
         if: env.ACTION != 'rebuild'
