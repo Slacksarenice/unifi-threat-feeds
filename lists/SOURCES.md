@@ -7,20 +7,20 @@ parse them, so the credits live here instead.
 
 | List | Detected | Group | IPv4 | IPv6 | Domains | Status | Source |
 | --- | --- | --- | ---: | ---: | ---: | --- | --- |
-| spamhaus-drop | IPs, JSON | core (auto) | 1604 | 84 | 0 | ok | https://www.spamhaus.org/drop/drop_v4.json<br>https://www.spamhaus.org/drop/drop_v6.json<br>(c) 2026 The Spamhaus Project SLU, data of 2026-11-25 13:26 UTC; (c) 2026 The Spamhaus Project SLU, data of 2026-11-25 09:56 UTC |
-| firehol-level1 | IPs, plain list | core (auto) | 4607 | 0 | 0 | ok | https://iplists.firehol.org/files/firehol_level1.netset |
-| et-block-ips | IPs, plain list | core (auto) | 1626 | 0 | 0 | ok | https://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt |
-| dshield | IPs, start-end ranges | core (auto) | 20 | 0 | 0 | ok | https://feeds.dshield.org/block.txt |
+| spamhaus-drop | IPs, JSON | core (auto) | 1604 | 84 | 0 | ok | https://www.spamhaus.org/drop/drop_v4.json<br>https://www.spamhaus.org/drop/drop_v6.json<br>(c) 2026 The Spamhaus Project SLU, data of 2026-11-26 08:56 UTC; (c) 2026 The Spamhaus Project SLU, data of 2026-11-26 09:26 UTC |
+| firehol-level1 | IPs, plain list | core (auto) | 4601 | 0 | 0 | ok | https://iplists.firehol.org/files/firehol_level1.netset |
+| et-block-ips | IPs, plain list | core (auto) | 1628 | 0 | 0 | ok | https://rules.emergingthreats.net/fwrules/emerging-Block-IPs.txt |
+| dshield | IPs, start-end ranges | core (auto) | 19 | 0 | 0 | ok | https://feeds.dshield.org/block.txt |
 | feodo-tracker | IPs, plain list | core | 5 | 0 | 0 | ok | https://feodotracker.abuse.ch/downloads/ipblocklist.txt |
-| ipsum-level3 | IPs, plain list | inbound (auto) | 12600 | 0 | 0 | ok | https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt |
-| blocklist-de | IPs, plain list | inbound (auto) | 14687 | 754 | 0 | ok | https://lists.blocklist.de/lists/all.txt |
-| cins-army | IPs, plain list | inbound (auto) | 13205 | 0 | 0 | ok | https://cinsscore.com/list/ci-badguys.txt |
-| et-compromised | IPs, plain list | inbound (auto) | 567 | 0 | 0 | ok | https://rules.emergingthreats.net/blockrules/compromised-ips.txt |
-| binarydefense | IPs, plain list | inbound (auto) | 471 | 0 | 0 | ok | https://www.binarydefense.com/banlist.txt |
-| greensnow | IPs, plain list | inbound (auto) | 2582 | 0 | 0 | ok | https://blocklist.greensnow.co/greensnow.txt |
-| combined-all | merged | all | 33831 | 838 | 0 | ok | merged from the feeds in this group |
-| combined-core | merged | core | 4623 | 84 | 0 | ok | merged from the feeds in this group |
-| combined-inbound | merged | inbound | 30757 | 754 | 0 | ok | merged from the feeds in this group |
+| ipsum-level3 | IPs, plain list | inbound (auto) | 12680 | 0 | 0 | ok | https://raw.githubusercontent.com/stamparm/ipsum/master/levels/3.txt |
+| blocklist-de | IPs, plain list | inbound (auto) | 16400 | 636 | 0 | ok | https://lists.blocklist.de/lists/all.txt |
+| cins-army | IPs, plain list | inbound (auto) | 13317 | 0 | 0 | ok | https://cinsscore.com/list/ci-badguys.txt |
+| et-compromised | IPs, plain list | inbound (auto) | 576 | 0 | 0 | ok | https://rules.emergingthreats.net/blockrules/compromised-ips.txt |
+| binarydefense | IPs, plain list | inbound (auto) | 923 | 0 | 0 | ok | https://www.binarydefense.com/banlist.txt |
+| greensnow | IPs, plain list | inbound (auto) | 2602 | 0 | 0 | ok | https://blocklist.greensnow.co/greensnow.txt |
+| combined-all | merged | all | 35798 | 720 | 0 | ok | merged from the feeds in this group |
+| combined-core | merged | core | 4616 | 84 | 0 | ok | merged from the feeds in this group |
+| combined-inbound | merged | inbound | 32798 | 636 | 0 | ok | merged from the feeds in this group |
 
 Spamhaus DROP data is provided by The Spamhaus Project. Terms:
 https://www.spamhaus.org/drop/terms/
